@@ -7,6 +7,7 @@ from pages.forecast import run_forecast_engine
 from pages.simulator import run_simulator
 from pages.patterns import run_pattern_library
 from pages.recovery import run_recovery_engine
+from pages.topology_explorer import run_topology_explorer
 
 st.set_page_config(
     page_title="Correction Capacity Inspector",
@@ -23,6 +24,7 @@ page = st.sidebar.selectbox(
         "Scenario Simulator",
         "Pattern Library",
         "Recovery Engine",
+        "Correction Topology Explorer",
     ]
 )
 
@@ -46,3 +48,6 @@ elif page == "Pattern Library":
 
 elif page == "Recovery Engine":
     run_recovery_engine()
+
+elif page == "Correction Topology Explorer":
+    run_topology_explorer()
