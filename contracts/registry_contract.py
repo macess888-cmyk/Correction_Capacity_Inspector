@@ -2,14 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Any, List, Optional
 
 
-class RegistryContract(ABC):
+class ReadRegistryContract(ABC):
     """
-    Base contract for all registries.
-
-    Registries are responsible for storing and retrieving
-    research objects.
-
-    Registries do not perform domain reasoning.
+    Contract for registries that provide read-only access.
     """
 
     @abstractmethod
@@ -22,9 +17,15 @@ class RegistryContract(ABC):
         """Return an object by its unique identifier."""
         raise NotImplementedError
 
+
+class MutableRegistryContract(ReadRegistryContract):
+    """
+    Contract for registries that support mutation.
+    """
+
     @abstractmethod
     def add(self, obj: Any) -> None:
-        """Add a new object to the registry."""
+        """Add an object."""
         raise NotImplementedError
 
     @abstractmethod
@@ -34,5 +35,9 @@ class RegistryContract(ABC):
 
     @abstractmethod
     def remove(self, object_id: str) -> None:
-        """Remove an object from the registry."""
+        """Remove an object by identifier."""
         raise NotImplementedError
+
+
+# Compatibility alias for earlier imports.
+RegistryContract = MutableRegistryContract
