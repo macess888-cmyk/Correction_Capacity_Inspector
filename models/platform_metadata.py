@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+default_factory=lambda: datetime.utcnow().isoformat()
 from typing import Optional
 
 
@@ -20,7 +20,7 @@ class PlatformMetadata:
     status: str = "Candidate"
 
     created: str = field(
-        default_factory=lambda: datetime.utcnow().isoformat()
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
 
     updated: Optional[str] = None
