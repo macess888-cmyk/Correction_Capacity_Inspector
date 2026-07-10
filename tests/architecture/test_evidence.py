@@ -79,3 +79,15 @@ def test_evidence_service_uses_registry():
 
     assert service.get_evidence("evd-003") == evidence
     assert service.get_all_evidence() == [evidence]
+
+
+def test_evidence_registry_rejects_duplicate_identifiers():
+
+    registry = EvidenceRegistry()
+
+    evidence = make_evidence("evd-duplicate")
+
+    registry.add(evidence)
+
+    with pytest.raises(ValueError):
+        registry.add(evidence)
