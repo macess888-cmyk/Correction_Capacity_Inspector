@@ -104,3 +104,20 @@ def test_relationship_registry_rejects_missing_update_and_remove():
 
     with pytest.raises(KeyError):
         registry.remove("missing")
+
+
+def test_relationship_registry_rejects_duplicate_identifiers():
+
+    registry = RelationshipRegistry()
+
+    relationship = Relationship(
+        relationship_id="rel-duplicate",
+        source_id="object-a",
+        target_id="object-b",
+        relationship_type="supports",
+    )
+
+    registry.add(relationship)
+
+    with pytest.raises(ValueError):
+        registry.add(relationship)

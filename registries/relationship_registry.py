@@ -6,7 +6,7 @@ from models.relationship import Relationship
 
 class RelationshipRegistry(MutableRegistryContract):
     """
-    Stores and retrieves Relationship objects.
+    Registry responsible for storing Relationship objects.
 
     The registry performs storage and retrieval only.
     It does not perform graph reasoning.
@@ -15,6 +15,24 @@ class RelationshipRegistry(MutableRegistryContract):
     def __init__(self) -> None:
         self._relationships: List[Relationship] = []
 
+    def add(
+        self,
+        relationship: Relationship,
+    ) -> None:
+
+        if (
+            self.get_by_id(
+                relationship.relationship_id
+            )
+            is not None
+        ):
+            raise ValueError(
+                "Relationship already exists: "
+                f"{relationship.relationship_id}"
+            )
+
+        self._relationships.append(relationship)
+
     def get_all(self) -> List[Relationship]:
         return list(self._relationships)
 
@@ -22,37 +40,48 @@ class RelationshipRegistry(MutableRegistryContract):
         self,
         relationship_id: str,
     ) -> Optional[Relationship]:
+
         for relationship in self._relationships:
-            if relationship.relationship_id == relationship_id:
+            if (
+                relationship.relationship_id
+                == relationship_id
+            ):
                 return relationship
 
         return None
-
-    def add(
-        self,
-        relationship: Relationship,
-    ) -> None:
-        self._relationships.append(relationship)
 
     def update(
         self,
         relationship: Relationship,
     ) -> None:
-        for index, existing in enumerate(self._relationships):
-            if existing.relationship_id == relationship.relationship_id:
+
+        for index, existing in enumerate(
+            self._relationships
+        ):
+            if (
+                existing.relationship_id
+                == relationship.relationship_id
+            ):
                 self._relationships[index] = relationship
                 return
 
         raise KeyError(
-            f"Relationship not found: {relationship.relationship_id}"
+            "Relationship not found: "
+            f"{relationship.relationship_id}"
         )
 
     def remove(
         self,
         relationship_id: str,
     ) -> None:
-        for index, relationship in enumerate(self._relationships):
-            if relationship.relationship_id == relationship_id:
+
+        for index, relationship in enumerate(
+            self._relationships
+        ):
+            if (
+                relationship.relationship_id
+                == relationship_id
+            ):
                 del self._relationships[index]
                 return
 
@@ -64,6 +93,7 @@ class RelationshipRegistry(MutableRegistryContract):
         self,
         source_id: str,
     ) -> List[Relationship]:
+
         return [
             relationship
             for relationship in self._relationships
@@ -74,6 +104,7 @@ class RelationshipRegistry(MutableRegistryContract):
         self,
         target_id: str,
     ) -> List[Relationship]:
+
         return [
             relationship
             for relationship in self._relationships
@@ -84,8 +115,12 @@ class RelationshipRegistry(MutableRegistryContract):
         self,
         relationship_type: str,
     ) -> List[Relationship]:
+
         return [
             relationship
             for relationship in self._relationships
-            if relationship.relationship_type == relationship_type
+            if (
+                relationship.relationship_type
+                == relationship_type
+            )
         ]

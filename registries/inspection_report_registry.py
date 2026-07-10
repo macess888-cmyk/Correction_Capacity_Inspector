@@ -16,6 +16,11 @@ class InspectionReportRegistry(MutableRegistryContract):
         self._reports: List[InspectionReport] = []
 
     def add(self, report: InspectionReport) -> None:
+        if self.get_by_id(report.report_id) is not None:
+            raise ValueError(
+                f"Inspection report already exists: {report.report_id}"
+            )
+
         self._reports.append(report)
 
     def get_all(self) -> List[InspectionReport]:

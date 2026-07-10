@@ -86,3 +86,15 @@ def test_inspection_report_service_uses_registry():
 
     assert service.get_report("report-003") == report
     assert service.get_all_reports() == [report]
+
+
+def test_inspection_report_registry_rejects_duplicate_identifiers():
+
+    registry = InspectionReportRegistry()
+
+    report = make_report("report-duplicate")
+
+    registry.add(report)
+
+    with pytest.raises(ValueError):
+        registry.add(report)
