@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from typing import Any, Mapping
-
+from models.execution_transition_operation import (
+    ExecutionTransitionOperation,
+)
 from models.inspection_execution import InspectionExecution
 from models.inspection_execution_event import (
     InspectionExecutionEvent,
@@ -16,50 +16,69 @@ from models.inspection_execution_status import (
 from registries.inspection_execution_registry import (
     InspectionExecutionRegistry,
 )
+from services.execution_transition_coordinator import (
+    ExecutionTransitionCoordinator,
+)
+from services.execution_transition_factory import (
+    ExecutionTransitionFactory,
+)
 from services.inspection_execution_event_service import (
     InspectionExecutionEventService,
-)
-from services.inspection_execution_transition_policy import (
-    InspectionExecutionTransitionPolicy,
 )
 
 
 class InspectionExecutionService:
     """
-    Manages inspection execution lifecycle transitions.
+    Facade for inspection execution lifecycle operations.
 
-    Every status change must pass through the verified transition
-    policy and record exactly one immutable execution event.
+    Execution creation remains an explicit lifecycle-origin action.
 
-    This service contains no inspection decision logic,
-    scoring, inference, or execution authority.
+    Every subsequent lifecycle transition is derived from the
+    execution grammar and delegated to the consistency coordinator.
+
+    This service contains no transition policy, state-mutation,
+    compensation, or event-construction logic.
     """
 
     def __init__(
         self,
         registry: InspectionExecutionRegistry,
         event_service: InspectionExecutionEventService,
+        transition_factory: ExecutionTransitionFactory,
+        transition_coordinator: ExecutionTransitionCoordinator,
     ) -> None:
         self._registry = registry
         self._event_service = event_service
+        self._transition_factory = transition_factory
+        self._transition_coordinator = transition_coordinator
 
     def create_execution(
         self,
         execution: InspectionExecution,
         event_id: str,
     ) -> InspectionExecution:
+        """
+        Register a new execution and record its lifecycle origin.
+
+        Creation is not a state transition. The execution begins
+        in CREATED and the corresponding event records that origin.
+        """
+
         self._registry.add(execution)
 
-        self._record_event(
+        event = InspectionExecutionEvent(
             event_id=event_id,
-            execution=execution,
+            execution_id=execution.execution_id,
             event_type=(
                 InspectionExecutionEventType.EXECUTION_CREATED
             ),
             previous_status=InspectionExecutionStatus.CREATED,
             current_status=InspectionExecutionStatus.CREATED,
+            stage=execution.current_stage,
             message="Execution created.",
         )
+
+        self._event_service.record_event(event)
 
         return execution
 
@@ -86,101 +105,105 @@ class InspectionExecutionService:
     def initialize_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.INITIALIZE,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.INITIALIZED,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_INITIALIZED
-            ),
-            current_stage="INITIALIZED",
-            message="Execution initialized.",
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
     def start_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.START,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.RUNNING,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_STARTED
-            ),
-            current_stage="RUNNING",
-            message="Execution started.",
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
     def pause_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.PAUSE,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.PAUSED,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_PAUSED
-            ),
-            current_stage="PAUSED",
-            message="Execution paused.",
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
     def resume_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.RESUME,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.RUNNING,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_RESUMED
-            ),
-            current_stage="RUNNING",
-            message="Execution resumed.",
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
     def complete_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.COMPLETE,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.COMPLETED,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_COMPLETED
-            ),
-            current_stage="COMPLETED",
-            message="Execution completed.",
-            mark_completed=True,
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
     def fail_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
         failure_reason: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.FAIL,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.FAILED,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_FAILED
-            ),
-            current_stage="FAILED",
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
             message="Execution failed.",
-            failure_reason=failure_reason,
-            mark_completed=True,
             metadata={
                 "failure_reason": failure_reason,
             },
@@ -189,34 +212,35 @@ class InspectionExecutionService:
     def cancel_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.CANCEL,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.CANCELLED,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_CANCELLED
-            ),
-            current_stage="CANCELLED",
-            message="Execution cancelled.",
-            mark_completed=True,
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
     def archive_execution(
         self,
         execution_id: str,
+        transition_id: str,
         event_id: str,
+        receipt_id: str,
+        consistency_record_id: str,
     ) -> InspectionExecution:
-        return self._transition(
+        return self._coordinate_transition(
+            operation=ExecutionTransitionOperation.ARCHIVE,
             execution_id=execution_id,
+            transition_id=transition_id,
             event_id=event_id,
-            target=InspectionExecutionStatus.ARCHIVED,
-            event_type=(
-                InspectionExecutionEventType.EXECUTION_ARCHIVED
-            ),
-            current_stage="ARCHIVED",
-            message="Execution archived.",
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
     def list_events_for_execution(
@@ -227,68 +251,33 @@ class InspectionExecutionService:
             execution_id
         )
 
-    def _transition(
+    def _coordinate_transition(
         self,
+        operation: ExecutionTransitionOperation,
         execution_id: str,
+        transition_id: str,
         event_id: str,
-        target: InspectionExecutionStatus,
-        event_type: InspectionExecutionEventType,
-        current_stage: str,
-        message: str,
-        failure_reason: str = "",
-        mark_completed: bool = False,
-        metadata: Mapping[str, Any] | None = None,
+        receipt_id: str,
+        consistency_record_id: str,
+        message: str | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> InspectionExecution:
         execution = self._registry.get(execution_id)
-        previous_status = execution.status
 
-        InspectionExecutionTransitionPolicy.validate_transition(
-            previous_status,
-            target,
-        )
-
-        execution.status = target
-        execution.current_stage = current_stage
-
-        if failure_reason:
-            execution.failure_reason = failure_reason
-
-        if mark_completed:
-            execution.completed = datetime.now(UTC)
-
-        self._registry.update(execution)
-
-        self._record_event(
+        intent = self._transition_factory.build_transition(
+            operation=operation,
+            transition_id=transition_id,
+            execution_id=execution_id,
             event_id=event_id,
-            execution=execution,
-            event_type=event_type,
-            previous_status=previous_status,
-            current_status=target,
+            previous_status=execution.status,
             message=message,
             metadata=metadata,
         )
 
-        return execution
-
-    def _record_event(
-        self,
-        event_id: str,
-        execution: InspectionExecution,
-        event_type: InspectionExecutionEventType,
-        previous_status: InspectionExecutionStatus,
-        current_status: InspectionExecutionStatus,
-        message: str,
-        metadata: Mapping[str, Any] | None = None,
-    ) -> None:
-        event = InspectionExecutionEvent(
-            event_id=event_id,
-            execution_id=execution.execution_id,
-            event_type=event_type,
-            previous_status=previous_status,
-            current_status=current_status,
-            stage=execution.current_stage,
-            message=message,
-            metadata=metadata or {},
+        self._transition_coordinator.coordinate(
+            intent=intent,
+            receipt_id=receipt_id,
+            consistency_record_id=consistency_record_id,
         )
 
-        self._event_service.record_event(event)
+        return self._registry.get(execution_id)
