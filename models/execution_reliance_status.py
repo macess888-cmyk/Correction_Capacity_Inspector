@@ -1,0 +1,8 @@
+from enum import Enum
+
+
+class ExecutionRelianceStatus(str, Enum):
+    RELIABLE = "RELIABLE"
+    NOT_RELIABLE = "NOT_RELIABLE"
+    CONDITIONALLY_RELIABLE = "CONDITIONALLY_RELIABLE"
+    INDETERMINATE = "INDETERMINATE"
